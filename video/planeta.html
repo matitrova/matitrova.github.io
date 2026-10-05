@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+<head>
+<style>html,body{margin:0;background:#04050b}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// Planeta holográfico. dibujar(t) es determinista y periódico con período T:
+// el cuadro de t = T es idéntico al de t = 0, así el video se repite sin corte.
+const T = 10;
+const W = 1920, H = 1080, CX = W / 2, CY = H / 2, R = 300;
+const PASO = Math.PI / 12;            // 15°: separación de meridianos
+const TILT = 0.38;                    // inclinación del eje: se ve el polo norte
+const ctx = document.getElementById("c").getContext("2d");
+
+// Números al azar pero siempre los mismos (semilla fija)
+let semilla = 7;
+const azar = () => ((semilla = (semilla * 16807) % 2147483647) - 1) / 2147483646;
+const estrellas = Array.from({ length: 650 }, () => ({
+  x: azar() * W, y: azar() * H, r: azar() * 1.3 + 0.2, base: azar() * 0.7 + 0.15,
+  fase: azar() * Math.PI * 2, k: 1 + Math.floor(azar() * 3),
+}));
+
+function proyectar(lat, lon, rot) {
+  const x = Math.cos(lat) * Math.sin(lon + rot);
+  const y = Math.sin(lat);
+  const z = Math.cos(lat) * Math.cos(lon + rot);
+  const y2 = y * Math.cos(TILT) - z * Math.sin(TILT);
+  const z2 = y * Math.sin(TILT) + z * Math.cos(TILT);
+  return { X: CX + R * x, Y: CY - R * y2, z: z2 };
+}
+
+// Arcos de datos entre nodos fijos del planeta. Cada uno vive dentro de la vuelta
+// (empieza después de 0 y termina antes de T): en el empalme no hay ninguno.
+// Todos del lado que mira a cámara (el planeta gira apenas 15° por vuelta).
+const NODOS = [[0.45, -0.9], [0.15, 0.7], [-0.35, -0.3], [0.65, 0.2], [-0.1, 1.05], [0.3, -0.45], [-0.55, 0.45], [0.05, -1.1], [0.8, -0.2], [-0.25, 0.95]];
+const DURA = 2.6;
+const ARCOS = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9], [1, 8], [3, 4], [7, 2], [9, 0]].map(([i, j], k) => [i, j, 0.3 + k * 0.85]); // la última termina en 9,7 s
+const vec = ([lat, lon]) => [Math.cos(lat) * Math.sin(lon), Math.sin(lat), Math.cos(lat) * Math.cos(lon)];
+function proyectarVec([x, y, z], rot, alto) {
+  const xr = x * Math.cos(rot) + z * Math.sin(rot), zr = z * Math.cos(rot) - x * Math.sin(rot);
+  const y2 = y * Math.cos(TILT) - zr * Math.sin(TILT), z2 = y * Math.sin(TILT) + zr * Math.cos(TILT);
+  return { X: CX + R * alto * xr, Y: CY - R * alto * y2, z: z2 };
+}
+function slerp(a, b, u) {
+  const d = Math.acos(Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+  const s = Math.sin(d), fa = Math.sin((1 - u) * d) / s, fb = Math.sin(u * d) / s;
+  return [a[0] * fa + b[0] * fb, a[1] * fa + b[1] * fb, a[2] * fa + b[2] * fb];
+}
+function arcos(t, rot) {
+  for (const [i, j, inicio] of ARCOS) {
+    const vida = (t - inicio) / DURA; // 0..1 mientras existe
+    if (vida <= 0 || vida >= 1) continue;
+    const a = vec(NODOS[i]), b = vec(NODOS[j]);
+    const cabeza = Math.min(1, vida * 1.6), cola = Math.max(0, vida * 1.6 - 0.6);
+    const apagado = vida > 0.75 ? (1 - vida) / 0.25 : 1;
+    let previo = null;
+    for (let k = 0; k <= 40; k++) {
+      const u = k / 40;
+      const p = proyectarVec(slerp(a, b, u), rot, 1 + 0.22 * Math.sin(Math.PI * u));
+      if (previo && u >= cola && u <= cabeza && p.z > -0.15 && previo.z > -0.15) {
+        const brillo = (0.25 + 0.75 * (u - cola) / Math.max(0.01, cabeza - cola)) * apagado;
+        ctx.strokeStyle = `rgba(165,243,252,${brillo})`; ctx.lineWidth = 2.6;
+        ctx.shadowBlur = 20; ctx.shadowColor = "rgba(34,211,238,1)";
+        ctx.beginPath(); ctx.moveTo(previo.X, previo.Y); ctx.lineTo(p.X, p.Y); ctx.stroke();
+      }
+      previo = p;
+    }
+    for (const [v, ver] of [[a, true], [b, cabeza >= 1]]) {
+      const p = proyectarVec(v, rot, 1);
+      if (!ver || p.z <= 0) continue;
+      ctx.fillStyle = `rgba(236,254,255,${apagado})`; ctx.shadowBlur = 20; ctx.shadowColor = "rgba(34,211,238,1)";
+      ctx.beginPath(); ctx.arc(p.X, p.Y, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.shadowBlur = 0;
+}
+
+const mezcla = (a, b, f) => a.map((v, i) => Math.round(v + (b[i] - v) * f));
+const VIOLETA = [167, 139, 250], CIAN = [34, 211, 238];
+const color = (z, alfa) => { const [r, g, b] = mezcla(VIOLETA, CIAN, Math.max(0, z)); return `rgba(${r},${g},${b},${alfa})`; };
+
+function linea(puntos, rot, anchoFrente) {
+  // Dibuja por tramos: adelante brillante, atrás tenue
+  for (let i = 0; i < puntos.length - 1; i++) {
+    const a = proyectar(puntos[i][0], puntos[i][1], rot);
+    const b = proyectar(puntos[i + 1][0], puntos[i + 1][1], rot);
+    const z = (a.z + b.z) / 2;
+    ctx.strokeStyle = z > 0 ? color(z, 0.25 + 0.6 * z) : color(0, 0.07);
+    ctx.lineWidth = z > 0 ? anchoFrente : 1;
+    ctx.shadowBlur = z > 0 ? 10 : 0;
+    ctx.shadowColor = color(z, 0.9);
+    ctx.beginPath(); ctx.moveTo(a.X, a.Y); ctx.lineTo(b.X, b.Y); ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+}
+
+function anillo(t, radio, tiltX, giroZ, n, pasos, delante) {
+  // Partículas en un anillo; en T avanzan "pasos" lugares exactos → periódico
+  const ang0 = (2 * Math.PI * pasos * t) / (T * n);
+  for (let k = 0; k < n; k++) {
+    const th = (2 * Math.PI * k) / n + ang0;
+    let x = radio * Math.cos(th), y = 0, z = radio * Math.sin(th);
+    const y1 = y * Math.cos(tiltX) - z * Math.sin(tiltX);
+    const z1 = y * Math.sin(tiltX) + z * Math.cos(tiltX);
+    const xr = x * Math.cos(giroZ) - y1 * Math.sin(giroZ);
+    const yr = x * Math.sin(giroZ) + y1 * Math.cos(giroZ);
+    if ((z1 > 0) !== delante) continue;
+    const X = CX + R * xr, Y = CY - R * yr;
+    // atrás y dentro del disco del planeta: tapado
+    if (!delante && Math.hypot(X - CX, Y - CY) < R * 0.98) continue;
+    const brillo = delante ? 0.95 : 0.35;
+    ctx.fillStyle = `rgba(165,243,252,${brillo})`;
+    ctx.shadowBlur = delante ? 14 : 4; ctx.shadowColor = "rgba(34,211,238,0.9)";
+    ctx.beginPath(); ctx.arc(X, Y, delante ? 2.6 : 1.6, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  // la órbita, apenas marcada
+  ctx.strokeStyle = delante ? "rgba(167,139,250,0.22)" : "rgba(167,139,250,0.08)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  let empezar = true;
+  for (let i = 0; i <= 120; i++) {
+    const th = (2 * Math.PI * i) / 120;
+    const x = radio * Math.cos(th), z = radio * Math.sin(th);
+    const y1 = -z * Math.sin(tiltX), z1 = z * Math.cos(tiltX);
+    if ((z1 > 0) !== delante) { empezar = true; continue; }
+    const X = CX + R * (x * Math.cos(giroZ) - y1 * Math.sin(giroZ));
+    const Y = CY - R * (x * Math.sin(giroZ) + y1 * Math.cos(giroZ));
+    if (empezar) { ctx.moveTo(X, Y); empezar = false; } else ctx.lineTo(X, Y);
+  }
+  ctx.stroke();
+}
+
+window.dibujar = function (t) {
+  const fase = (2 * Math.PI * t) / T;
+  const rot = (PASO * t) / T; // gira 15° por vuelta: los meridianos coinciden al empalmar
+
+  // fondo y nebulosa
+  ctx.fillStyle = "#04050b"; ctx.fillRect(0, 0, W, H);
+  for (const [x, y, r, c] of [[CX - 520, CY - 260, 700, "rgba(124,58,237,0.16)"], [CX + 560, CY + 220, 650, "rgba(34,211,238,0.09)"]]) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, c); g.addColorStop(1, "rgba(4,5,11,0)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  for (const e of estrellas) {
+    ctx.fillStyle = `rgba(255,255,255,${e.base * (0.55 + 0.45 * Math.sin(fase * e.k + e.fase))})`;
+    ctx.fillRect(e.x, e.y, e.r, e.r);
+  }
+
+  // anillos: mitad de atrás
+  anillo(t, 1.62, 1.22, 0.32, 48, 2, false);
+  anillo(t, 2.05, 1.32, -0.42, 64, -3, false);
+
+  // atmósfera y cuerpo del planeta
+  let g = ctx.createRadialGradient(CX, CY, R * 0.9, CX, CY, R * 1.45);
+  g.addColorStop(0, "rgba(124,58,237,0.38)"); g.addColorStop(0.45, "rgba(34,211,238,0.10)"); g.addColorStop(1, "rgba(4,5,11,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(CX, CY, R * 1.45, 0, Math.PI * 2); ctx.fill();
+  g = ctx.createRadialGradient(CX - R * 0.35, CY - R * 0.4, R * 0.1, CX, CY, R);
+  g.addColorStop(0, "rgba(46,30,110,0.95)"); g.addColorStop(1, "rgba(6,7,20,0.98)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2); ctx.fill();
+
+  // grilla: meridianos y paralelos
+  for (let lon = 0; lon < 2 * Math.PI - 1e-6; lon += PASO) {
+    const pts = []; for (let lat = -Math.PI / 2; lat <= Math.PI / 2 + 1e-6; lat += Math.PI / 60) pts.push([lat, lon]);
+    linea(pts, rot, 1.3);
+  }
+  for (let lat = -5 * PASO; lat <= 5 * PASO + 1e-6; lat += PASO) {
+    const pts = []; for (let lon = 0; lon <= 2 * Math.PI + 1e-6; lon += Math.PI / 60) pts.push([lat, lon]);
+    linea(pts, rot, 1.1);
+  }
+  // puntos de datos sobre la superficie (cada 7,5°: también coinciden al empalmar)
+  for (let lat = -10; lat <= 10; lat++) {
+    for (let j = 0; j < 48; j++) {
+      const p = proyectar((lat * PASO) / 2, (j * PASO) / 2 + PASO / 4, rot);
+      if (p.z <= 0.05) continue;
+      ctx.fillStyle = color(p.z, 0.35 + 0.6 * p.z);
+      ctx.fillRect(p.X - 1.2, p.Y - 1.2, 2.4, 2.4);
+    }
+  }
+
+  // barrido de escaneo holográfico, una pasada por vuelta
+  const ys = CY - R + ((t / T) * 2 * R * 1.6) % (2 * R * 1.6) - R * 0.3;
+  ctx.save(); ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2); ctx.clip();
+  g = ctx.createLinearGradient(0, ys - 40, 0, ys + 40);
+  g.addColorStop(0, "rgba(34,211,238,0)"); g.addColorStop(0.5, "rgba(34,211,238,0.22)"); g.addColorStop(1, "rgba(34,211,238,0)");
+  ctx.fillStyle = g; ctx.fillRect(CX - R, ys - 40, 2 * R, 80);
+  ctx.restore();
+
+  // borde luminoso, más fuerte del lado derecho (luz cian)
+  ctx.strokeStyle = "rgba(196,181,253,0.55)"; ctx.lineWidth = 1.5;
+  ctx.shadowBlur = 25; ctx.shadowColor = "rgba(167,139,250,0.9)";
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "rgba(165,243,252,0.9)"; ctx.lineWidth = 3;
+  ctx.shadowBlur = 40; ctx.shadowColor = "rgba(34,211,238,1)";
+  ctx.beginPath(); ctx.arc(CX, CY, R, -1.1, 0.9); ctx.stroke(); ctx.shadowBlur = 0;
+
+  arcos(t, rot);
+
+  // anillos: mitad de adelante
+  anillo(t, 1.62, 1.22, 0.32, 48, 2, true);
+  anillo(t, 2.05, 1.32, -0.42, 64, -3, true);
+
+  // viñeta para fundirse con el fondo de la página
+  g = ctx.createRadialGradient(CX, CY, H * 0.45, CX, CY, W * 0.62);
+  g.addColorStop(0, "rgba(4,5,11,0)"); g.addColorStop(1, "rgba(4,5,11,0.92)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+};
+window.dibujar(0);
+</script>
+</body>
+</html>

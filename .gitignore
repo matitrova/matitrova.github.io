@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# cuadros que genera video/render.py
+video/cuadros
+video/prueba_*.jpg
