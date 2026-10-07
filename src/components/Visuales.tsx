@@ -34,7 +34,8 @@ function Ventana({ url, children, className = "" }: { url: string; children: Rea
 const Escena = ({ children }: { children: ReactNode }) => (
   <div className="relative flex h-full w-full items-center justify-center p-[6%] [perspective:1400px]">
     <div className="pointer-events-none absolute inset-[10%] rounded-full bg-acento-fuerte/25 blur-[90px]" aria-hidden="true" />
-    {children}
+    {/* En pantalla chica el panel mide un tercio del alto: todo un poco más chico */}
+    <div className="relative flex h-full w-full items-center justify-center max-[1025px]:scale-[0.86]">{children}</div>
   </div>
 );
 
@@ -63,7 +64,7 @@ export function VisualMojonApp({ idioma }: { idioma: Idioma }) {
           <p className="font-mono text-[10px] text-suave">00-06-44-05-000118</p>
         </div>
       </Flotar>
-      <Flotar demora={1.5} className="absolute top-[12%] left-[6%]">
+      <Flotar demora={1.5} className="absolute top-[12%] left-[6%] max-[1025px]:hidden">
         <div className="vidrio rounded-full px-3 py-1.5 font-mono text-[11px] text-acento">✦ Claude API</div>
       </Flotar>
     </Escena>
@@ -79,8 +80,8 @@ export function VisualBot({ idioma }: { idioma: Idioma }) {
   ];
   return (
     <Escena>
-      <div className="vidrio relative w-full max-w-[380px] rounded-[28px] p-4 [transform:rotateY(8deg)]">
-        <div className="mb-3 flex items-center gap-3 border-b border-white/10 pb-3">
+      <div className="vidrio relative w-full max-w-[380px] rounded-[28px] p-4 [transform:rotateY(8deg)] max-[1025px]:self-start">
+        <div className="mb-3 flex items-center gap-3 border-b border-white/10 pb-3 max-[1025px]:hidden">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-acento to-cian font-display text-sm font-bold text-fondo">G</span>
           <div>
             <p className="text-sm font-medium">Graciela</p>
@@ -94,21 +95,21 @@ export function VisualBot({ idioma }: { idioma: Idioma }) {
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 * i }}
-              className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${lado === "c" ? "self-start rounded-bl-sm bg-white/8" : "self-end rounded-br-sm bg-acento-fuerte/70"}`}
+              className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm max-[1025px]:px-3 max-[1025px]:py-1.5 max-[1025px]:text-xs ${lado === "c" ? "self-start rounded-bl-sm bg-white/8" : "self-end rounded-br-sm bg-acento-fuerte/70"}`}
             >
               {texto}
             </motion.p>
           ))}
         </div>
       </div>
-      <Flotar className="absolute right-[5%] bottom-[10%]">
-        <div className="vidrio rounded-xl border-cian/40 px-4 py-3 shadow-[0_0_40px_rgba(34,211,238,0.25)]">
-          <p className="font-mono text-[10px] tracking-widest text-cian uppercase">Google Calendar · {es ? "creado" : "created"}</p>
-          <p className="mt-1 font-display text-lg font-semibold">{es ? "mié 30/09 · 11:30" : "Wed 30/09 · 11:30"}</p>
-          <p className="text-xs text-suave">{es ? "Lavado completo · 120 min" : "Full wash · 120 min"}</p>
+      <Flotar className="absolute right-[5%] bottom-[10%] max-[1025px]:-right-[3%] max-[1025px]:-bottom-[8%]">
+        <div className="vidrio rounded-xl border-cian/40 px-4 py-3 max-[1025px]:px-3 max-[1025px]:py-2 shadow-[0_0_40px_rgba(34,211,238,0.25)]">
+          <p className="font-mono text-[10px] tracking-widest text-cian uppercase max-[1025px]:tracking-normal">Google Calendar · {es ? "creado" : "created"}</p>
+          <p className="mt-1 font-display text-lg font-semibold max-[1025px]:text-base">{es ? "mié 30/09 · 11:30" : "Wed 30/09 · 11:30"}</p>
+          <p className="text-xs text-suave max-[1025px]:hidden">{es ? "Lavado completo · 120 min" : "Full wash · 120 min"}</p>
         </div>
       </Flotar>
-      <Flotar demora={2} className="absolute top-[10%] left-[5%]">
+      <Flotar demora={2} className="absolute top-[10%] left-[5%] max-[1025px]:hidden">
         <div className="vidrio rounded-full px-3 py-1.5 font-mono text-[11px] text-acento">US$ 0,0015 / {es ? "mensaje" : "message"}</div>
       </Flotar>
     </Escena>
@@ -142,7 +143,7 @@ export function VisualQA({ idioma }: { idioma: Idioma }) {
     : ["Get token: responds 200", "Wrong password: no token returned", "PATCH leaves the rest untouched", "Delete without token: 403"];
   return (
     <Escena>
-      <div className="vidrio w-full max-w-[560px] rounded-2xl p-6 [transform:rotateY(-6deg)_rotateX(3deg)]">
+      <div className="vidrio w-full max-w-[560px] rounded-2xl p-6 max-[1025px]:p-4 [transform:rotateY(-6deg)_rotateX(3deg)]">
         <div className="flex items-center justify-between">
           <p className="font-mono text-xs tracking-widest text-suave uppercase">{es ? "Suites de prueba" : "Test suites"}</p>
           <span className="rounded-full bg-emerald-400/15 px-3 py-1 font-mono text-[11px] text-emerald-300">● PASS</span>
@@ -158,7 +159,7 @@ export function VisualQA({ idioma }: { idioma: Idioma }) {
         <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10">
           <motion.div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cian" initial={{ width: "0%" }} whileInView={{ width: "100%" }} transition={{ duration: 1.6, ease: "easeOut" }} />
         </div>
-        <ul className="mt-5 space-y-2 font-mono text-[12px]">
+        <ul className="mt-5 space-y-2 font-mono text-[12px] max-[1025px]:hidden">
           {pruebas.map((p) => (
             <li key={p} className="flex gap-2 text-tinta/85">
               <span className="text-emerald-300">✓</span>

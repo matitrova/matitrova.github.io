@@ -118,7 +118,16 @@ export default function StickyProjects({ items }: { items: readonly Proyecto[] }
       ScrollTrigger.refresh();
     }, seccion);
 
-    return () => contexto.revert();
+    // Las fuentes y las imágenes cambian el alto de la página al cargar: si GSAP
+    // se queda con las posiciones de antes, el snap lleva a otro proyecto.
+    const recalcular = () => ScrollTrigger.refresh();
+    document.fonts?.ready.then(recalcular);
+    window.addEventListener("load", recalcular);
+
+    return () => {
+      window.removeEventListener("load", recalcular);
+      contexto.revert();
+    };
   }, [items]);
 
   return (

@@ -35,12 +35,12 @@ function Menu({ idioma, alCambiar }: { idioma: Idioma; alCambiar: () => void }) 
   }, []);
 
   return (
-    <nav className="vidrio fixed top-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full p-1">
+    <nav className="vidrio fixed top-5 left-1/2 z-50 flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center gap-0.5 rounded-full p-1 sm:gap-1">
       {SECCIONES.map((id) => (
         <a
           key={id}
           href={`#${id}`}
-          className="relative rounded-full px-3 py-2 text-xs font-medium text-suave transition-colors hover:text-tinta md:px-5 md:text-sm"
+          className="relative rounded-full px-2 py-2 text-[11px] font-medium text-suave transition-colors hover:text-tinta sm:px-3 sm:text-xs md:px-5 md:text-sm"
         >
           {activa === id && (
             <motion.span layoutId="luz" className="absolute inset-0 -z-10 rounded-full bg-white/10" transition={{ type: "spring", stiffness: 300, damping: 30 }}>
@@ -55,9 +55,11 @@ function Menu({ idioma, alCambiar }: { idioma: Idioma; alCambiar: () => void }) 
       <button
         type="button"
         onClick={alCambiar}
-        className="ml-1 rounded-full border border-white/15 px-3 py-2 font-mono text-xs text-tinta transition-colors hover:border-cian hover:text-cian md:text-sm"
+        aria-label={t.cambiarIdioma}
+        className="ml-1 rounded-full border border-white/15 px-2.5 py-2 font-mono text-[11px] text-tinta transition-colors hover:border-cian hover:text-cian sm:px-3 sm:text-xs md:text-sm"
       >
-        {t.cambiarIdioma}
+        <span className="sm:hidden">{idioma === "es" ? "EN" : "ES"}</span>
+        <span className="hidden sm:inline">{t.cambiarIdioma}</span>
       </button>
     </nav>
   );
@@ -71,10 +73,17 @@ function Giro({ palabras }: { palabras: readonly string[] }) {
   }, [palabras]);
   return (
     <span className="relative inline-grid align-bottom">
+      {/* Todas las palabras, invisibles, reservan el alto de la más larga: si no, en
+          celular la portada cambia de alto con cada palabra y corre el snap de los proyectos. */}
+      {palabras.map((p) => (
+        <span key={p} className="invisible col-start-1 row-start-1 font-display font-semibold" aria-hidden="true">
+          {p}
+        </span>
+      ))}
       <AnimatePresence mode="wait">
         <motion.span
           key={palabras[i]}
-          className="degrade font-display font-semibold"
+          className="degrade col-start-1 row-start-1 font-display font-semibold"
           initial={{ y: 24, opacity: 0, filter: "blur(8px)" }}
           animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
           exit={{ y: -24, opacity: 0, filter: "blur(8px)" }}
@@ -151,7 +160,8 @@ export default function App() {
   const proyectos = t.proyectos.items.map(({ visual, ...resto }) => ({ ...resto, visual: visuales[visual] }));
 
   return (
-    <main className="relative text-tinta">
+    <main className="relative overflow-x-clip text-tinta">
+      {/* overflow-x-clip: lo que entra animado desde el costado no ensancha la página en celular (clip y no hidden, que rompe el sticky) */}
       <Estrellas />
       <Menu idioma={idioma} alCambiar={() => setIdioma(idioma === "es" ? "en" : "es")} />
 
